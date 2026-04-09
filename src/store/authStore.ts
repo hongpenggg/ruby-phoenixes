@@ -22,7 +22,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   setUser: (user) => set({ user }),
   setProfile: (profile) => set({ profile }),
   signOut: async () => {
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
     set({ user: null, profile: null });
   },
   initialize: async () => {

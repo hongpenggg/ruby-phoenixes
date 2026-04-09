@@ -9,6 +9,7 @@ import Events from './pages/Events';
 import Profile from './pages/Profile';
 import Players from './pages/Players';
 import CoachDashboard from './pages/CoachDashboard';
+import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,6 +50,7 @@ export default function App() {
       <Router>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/404" element={<NotFound />} />
           <Route
             path="/"
             element={
@@ -61,9 +63,9 @@ export default function App() {
             <Route path="events" element={<Events />} />
             <Route path="players" element={<Players />} />
             <Route path="profile/:id" element={<Profile />} />
-            <Route path="coach" element={<CoachDashboard />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
+              <Route path="coach" element={<CoachDashboard />} />
+            </Route>
+          <Route path="*" element={<Navigate to="/404" replace />} />
         </Routes>
       </Router>
     </QueryClientProvider>

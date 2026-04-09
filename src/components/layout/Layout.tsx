@@ -8,10 +8,20 @@ export default function Layout() {
   const { user, profile, signOut } = useAuthStore();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/login');
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Failed to sign out:', error);
+    } finally {
+      setIsMobileMenuOpen(false);
+      setIsSigningOut(false);
+    }
   };
 
   const navItems = useMemo(() => {
@@ -55,9 +65,9 @@ export default function Layout() {
               {user && (
                 <div className="flex items-center gap-4 ml-4 pl-4 border-l border-red-700">
                   <span className="text-sm font-medium text-red-100">{profile?.full_name || user.email}</span>
-                  <Button variant="secondary" size="sm" onClick={handleSignOut} className="gap-2">
+                  <Button variant="secondary" size="sm" onClick={handleSignOut} className="gap-2" disabled={isSigningOut}>
                     <LogOut className="w-4 h-4" />
-                    Sign Out
+                    {isSigningOut ? 'Signing Out...' : 'Sign Out'}
                   </Button>
                 </div>
               )}
@@ -86,18 +96,18 @@ export default function Layout() {
             ))}
             <div className="pt-4 pb-2 border-t border-red-800">
               <div className="px-3 py-2 text-sm text-red-200">Signed in as {profile?.full_name || user.email}</div>
-              <button
-                onClick={() => {
-                  handleSignOut();
-                  setIsMobileMenuOpen(false);
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-amber-500 hover:bg-red-800"
-              >
-                <LogOut className="w-5 h-5" />
-                Sign Out
-              </button>
+                <button
+                  onClick={() => {
+                    handleSignOut();
+                  }}
+                  disabled={isSigningOut}
+                  className="flex w-full items-center gap-2 px-3 py-2 rounded-md text-base font-medium text-amber-500 hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  <LogOut className="w-5 h-5" />
+                  {isSigningOut ? 'Signing Out...' : 'Sign Out'}
+                </button>
+              </div>
             </div>
-          </div>
         )}
       </header>
 
