@@ -96,14 +96,14 @@ export default function Profile() {
 
       const profileUpdate = supabase
         .from('profiles')
-        .update({ full_name: editForm.full_name.trim() || null })
+        .update({ full_name: editForm.full_name.trim() || null } as never)
         .eq('id', id)
         .select('*')
         .single();
 
       const playerUpdate = supabase
         .from('players')
-        .update({ bio: editForm.bio.trim() || null })
+        .update({ bio: editForm.bio.trim() || null } as never)
         .eq('id', id)
         .select('*')
         .single();

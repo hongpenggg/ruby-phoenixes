@@ -45,20 +45,21 @@ export default function Events() {
     mutationFn: async ({ eventId, status }: { eventId: string; status: RsvpRow['status'] }) => {
       if (!user) throw new Error('Not authenticated');
 
-      const { data: existing, error: existingError } = await supabase
+      const { data, error: existingError } = await supabase
         .from('rsvps')
         .select('id')
         .eq('event_id', eventId)
         .eq('player_id', user.id)
         .maybeSingle();
+      const existing = data as { id: string } | null;
 
       if (existingError) throw existingError;
 
       if (existing) {
-        const { error } = await supabase.from('rsvps').update({ status }).eq('id', existing.id);
+        const { error } = await supabase.from('rsvps').update({ status } as never).eq('id', existing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('rsvps').insert({ event_id: eventId, player_id: user.id, status });
+        const { error } = await supabase.from('rsvps').insert({ event_id: eventId, player_id: user.id, status } as never);
         if (error) throw error;
       }
     },

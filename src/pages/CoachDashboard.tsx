@@ -116,7 +116,7 @@ export default function CoachDashboard() {
         .update({
           strengths: strengths.length ? strengths : null,
           weaknesses: weaknesses.length ? weaknesses : null,
-        })
+        } as never)
         .eq('id', selectedPlayerId);
 
       if (error) throw error;
@@ -149,7 +149,7 @@ export default function CoachDashboard() {
         payload[axis.field] = axisRatings[axis.field] ? Number(axisRatings[axis.field]) : null;
       });
 
-      const { error } = await supabase.from('performance_metrics').insert(payload);
+      const { error } = await supabase.from('performance_metrics').insert(payload as never);
       if (error) throw error;
     },
     onSuccess: () => {
