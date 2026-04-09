@@ -38,8 +38,8 @@ const INITIAL_FORM_DATA: EventFormData = {
 
 const toDateTimeLocalValue = (isoDate: string) => {
   const date = new Date(isoDate);
-  const timezoneOffsetMs = date.getTimezoneOffset() * 60000;
-  return new Date(date.getTime() - timezoneOffsetMs).toISOString().slice(0, 16);
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
 const toFormData = (event?: EventRow): EventFormData => {
@@ -68,19 +68,22 @@ export function CreateEventDialog({ event, open, onOpenChange }: CreateEventDial
     if (!isControlled) {
       setInternalOpen(nextOpen);
     }
+    // In controlled mode, parent state is the source of truth.
     onOpenChange?.(nextOpen);
   };
 
   useEffect(() => {
     if (isOpen) {
       setFormData(toFormData(event));
-    } else if (!isEditMode) {
+    } else {
       setFormData(INITIAL_FORM_DATA);
     }
-  }, [isOpen, isEditMode, event]);
+  }, [isOpen, event]);
 
   const createMutation = useMutation({
     mutationFn: async (data: EventFormData) => {
+      if (isEditMode && !event?.id) throw new Error('Missing event id for update.');
+
       const eventPayload = {
         title: data.title,
         description: data.description || null,
@@ -91,7 +94,7 @@ export function CreateEventDialog({ event, open, onOpenChange }: CreateEventDial
       };
 
       const { error } = isEditMode
-        ? await supabase.from('events').update(eventPayload).eq('id', event!.id)
+        ? await supabase.from('events').update(eventPayload).eq('id', event.id)
         : await supabase.from('events').insert({
             ...eventPayload,
             created_by: user?.id,
