@@ -8,11 +8,12 @@ import Dashboard from './pages/Dashboard';
 import Events from './pages/Events';
 import Profile from './pages/Profile';
 import Players from './pages/Players';
+import CoachDashboard from './pages/CoachDashboard';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 1000 * 60 * 5,
       retry: 1,
     },
   },
@@ -60,7 +61,9 @@ export default function App() {
             <Route path="events" element={<Events />} />
             <Route path="players" element={<Players />} />
             <Route path="profile/:id" element={<Profile />} />
+            <Route path="coach" element={<CoachDashboard />} />
           </Route>
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </QueryClientProvider>

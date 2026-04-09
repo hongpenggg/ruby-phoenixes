@@ -7,6 +7,14 @@ import { Calendar as CalendarIcon, MapPin, Users, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuthStore } from '../store/authStore';
 import { CreateEventDialog } from '../components/ui/CreateEventDialog';
+import { Database } from '../types/supabase';
+
+type EventRow = Database['public']['Tables']['events']['Row'];
+type RsvpRow = Database['public']['Tables']['rsvps']['Row'];
+
+type EventWithRsvps = EventRow & {
+  rsvps: Pick<RsvpRow, 'id' | 'status' | 'player_id'>[] | null;
+};
 
 export default function Events() {
   const { user, profile } = useAuthStore();
@@ -29,32 +37,28 @@ export default function Events() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as any[];
+      return (data ?? []) as EventWithRsvps[];
     },
   });
 
   const rsvpMutation = useMutation({
-    mutationFn: async ({ eventId, status }: { eventId: string; status: 'yes' | 'no' | 'maybe' }) => {
+    mutationFn: async ({ eventId, status }: { eventId: string; status: RsvpRow['status'] }) => {
       if (!user) throw new Error('Not authenticated');
-      
-      // Check if RSVP exists
-      const { data: existing } = await supabase
+
+      const { data: existing, error: existingError } = await supabase
         .from('rsvps')
         .select('id')
         .eq('event_id', eventId)
         .eq('player_id', user.id)
-        .single();
+        .maybeSingle();
+
+      if (existingError) throw existingError;
 
       if (existing) {
-        const { error } = await supabase
-          .from('rsvps')
-          .update({ status } as any)
-          .eq('id', existing.id);
+        const { error } = await supabase.from('rsvps').update({ status }).eq('id', existing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase
-          .from('rsvps')
-          .insert({ event_id: eventId, player_id: user.id, status } as any);
+        const { error } = await supabase.from('rsvps').insert({ event_id: eventId, player_id: user.id, status });
         if (error) throw error;
       }
     },
@@ -76,44 +80,28 @@ export default function Events() {
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Events & Games</h1>
           <p className="text-muted-foreground">Join upcoming training sessions and matches.</p>
         </div>
-        {isCoachOrAdmin && (
-          <CreateEventDialog />
-        )}
+        {isCoachOrAdmin && <CreateEventDialog />}
       </div>
 
       <div className="flex gap-2 mb-6">
-        <Button 
-          variant={filter === 'upcoming' ? 'default' : 'outline'} 
-          onClick={() => setFilter('upcoming')}
-          size="sm"
-        >
+        <Button variant={filter === 'upcoming' ? 'default' : 'outline'} onClick={() => setFilter('upcoming')} size="sm">
           Upcoming
         </Button>
-        <Button 
-          variant={filter === 'past' ? 'default' : 'outline'} 
-          onClick={() => setFilter('past')}
-          size="sm"
-        >
+        <Button variant={filter === 'past' ? 'default' : 'outline'} onClick={() => setFilter('past')} size="sm">
           Past
         </Button>
-        <Button 
-          variant={filter === 'all' ? 'default' : 'outline'} 
-          onClick={() => setFilter('all')}
-          size="sm"
-        >
+        <Button variant={filter === 'all' ? 'default' : 'outline'} onClick={() => setFilter('all')} size="sm">
           All
         </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {events?.length === 0 ? (
-          <div className="col-span-full text-center py-12 text-muted-foreground">
-            No events found.
-          </div>
+          <div className="col-span-full text-center py-12 text-muted-foreground">No events found.</div>
         ) : (
           events?.map((event) => {
-            const myRsvp = event.rsvps?.find((r: any) => r.player_id === user?.id);
-            const yesCount = event.rsvps?.filter((r: any) => r.status === 'yes').length || 0;
+            const myRsvp = event.rsvps?.find((rsvp) => rsvp.player_id === user?.id);
+            const yesCount = event.rsvps?.filter((rsvp) => rsvp.status === 'yes').length || 0;
 
             return (
               <Card key={event.id} className="flex flex-col">
