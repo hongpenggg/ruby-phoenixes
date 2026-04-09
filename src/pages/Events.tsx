@@ -7,11 +7,18 @@ import { Calendar as CalendarIcon, MapPin, Users, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuthStore } from '../store/authStore';
 import { CreateEventDialog } from '../components/ui/CreateEventDialog';
+import { Database } from '../types/supabase';
+
+type RSVP = Database['public']['Tables']['rsvps']['Row'];
+type EventWithRsvps = Database['public']['Tables']['events']['Row'] & {
+  rsvps: RSVP[];
+};
 
 export default function Events() {
   const { user, profile } = useAuthStore();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming');
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const { data: events, isLoading } = useQuery({
     queryKey: ['events', filter],
@@ -29,37 +36,29 @@ export default function Events() {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as any[];
+      return (data ?? []) as EventWithRsvps[];
     },
   });
 
   const rsvpMutation = useMutation({
     mutationFn: async ({ eventId, status }: { eventId: string; status: 'yes' | 'no' | 'maybe' }) => {
       if (!user) throw new Error('Not authenticated');
-      
-      // Check if RSVP exists
-      const { data: existing } = await supabase
-        .from('rsvps')
-        .select('id')
-        .eq('event_id', eventId)
-        .eq('player_id', user.id)
-        .single();
 
-      if (existing) {
-        const { error } = await supabase
-          .from('rsvps')
-          .update({ status } as any)
-          .eq('id', existing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('rsvps')
-          .insert({ event_id: eventId, player_id: user.id, status } as any);
-        if (error) throw error;
-      }
+      const { error } = await supabase
+        .from('rsvps')
+        .upsert(
+          { event_id: eventId, player_id: user.id, status },
+          { onConflict: 'event_id,player_id' }
+        );
+
+      if (error) throw error;
     },
     onSuccess: () => {
+      setActionError(null);
       queryClient.invalidateQueries({ queryKey: ['events'] });
+    },
+    onError: (error: unknown) => {
+      setActionError(error instanceof Error ? error.message : 'Failed to update RSVP.');
     },
   });
 
@@ -105,6 +104,12 @@ export default function Events() {
         </Button>
       </div>
 
+      {actionError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      )}
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {events?.length === 0 ? (
           <div className="col-span-full text-center py-12 text-muted-foreground">
@@ -112,8 +117,8 @@ export default function Events() {
           </div>
         ) : (
           events?.map((event) => {
-            const myRsvp = event.rsvps?.find((r: any) => r.player_id === user?.id);
-            const yesCount = event.rsvps?.filter((r: any) => r.status === 'yes').length || 0;
+            const myRsvp = event.rsvps?.find((r) => r.player_id === user?.id);
+            const yesCount = event.rsvps?.filter((r) => r.status === 'yes').length || 0;
 
             return (
               <Card key={event.id} className="flex flex-col">

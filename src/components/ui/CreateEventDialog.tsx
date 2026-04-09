@@ -12,6 +12,7 @@ export function CreateEventDialog() {
   const [open, setOpen] = useState(false);
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -24,18 +25,23 @@ export function CreateEventDialog() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
+      if (!user?.id) {
+        throw new Error('You must be signed in to create an event.');
+      }
+
       const { error } = await supabase.from('events').insert({
         title: data.title,
         description: data.description,
         event_date: new Date(data.event_date).toISOString(),
         venue: data.venue,
-        type: data.type as any,
+        type: data.type as 'training' | 'friendly' | 'competitive' | 'social',
         max_players: data.max_players ? parseInt(data.max_players) : null,
-        created_by: user?.id,
-      } as any);
+        created_by: user.id,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
+      setErrorMessage(null);
       queryClient.invalidateQueries({ queryKey: ['events'] });
       setOpen(false);
       setFormData({
@@ -46,6 +52,9 @@ export function CreateEventDialog() {
         type: 'training',
         max_players: '',
       });
+    },
+    onError: (error: unknown) => {
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to create event.');
     },
   });
 
@@ -72,6 +81,11 @@ export function CreateEventDialog() {
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-4">
+            {errorMessage && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {errorMessage}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
               <Input 

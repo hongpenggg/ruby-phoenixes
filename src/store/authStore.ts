@@ -4,6 +4,21 @@ import { supabase } from '../lib/supabase';
 import { Database } from '../types/supabase';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
+let authSubscription: { unsubscribe: () => void } | null = null;
+
+const fetchProfile = async (userId: string) => {
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return profile;
+};
 
 interface AuthState {
   user: User | null;
@@ -32,12 +47,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (session?.user) {
         set({ user: session.user });
         
-        // Fetch profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
+        const profile = await fetchProfile(session.user.id);
           
         if (profile) {
           set({ profile });
@@ -50,18 +60,24 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     // Listen for auth changes
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        set({ user: session.user });
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        if (profile) set({ profile });
-      } else {
-        set({ user: null, profile: null });
+    if (authSubscription) {
+      authSubscription.unsubscribe();
+    }
+
+    const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      try {
+        if (session?.user) {
+          set({ user: session.user });
+          const profile = await fetchProfile(session.user.id);
+          if (profile) set({ profile });
+        } else {
+          set({ user: null, profile: null });
+        }
+      } catch (error) {
+        console.error('Error handling auth state change:', error);
       }
     });
+
+    authSubscription = data.subscription;
   },
 }));
