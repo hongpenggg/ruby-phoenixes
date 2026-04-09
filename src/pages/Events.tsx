@@ -3,11 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { Calendar as CalendarIcon, MapPin, Users, Clock } from 'lucide-react';
+import { Calendar as CalendarIcon, MapPin, Users, Clock, MoreHorizontal, Pencil } from 'lucide-react';
 import { format } from 'date-fns';
 import { useAuthStore } from '../store/authStore';
 import { CreateEventDialog } from '../components/ui/CreateEventDialog';
 import { Database } from '../types/supabase';
+import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 type EventRow = Database['public']['Tables']['events']['Row'];
 type RsvpRow = Database['public']['Tables']['rsvps']['Row'];
@@ -20,6 +21,8 @@ export default function Events() {
   const { user, profile } = useAuthStore();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming');
+  const [editingEvent, setEditingEvent] = useState<EventRow | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   const { data: events, isLoading } = useQuery({
     queryKey: ['events', filter],
@@ -83,6 +86,16 @@ export default function Events() {
         </div>
         {isCoachOrAdmin && <CreateEventDialog />}
       </div>
+      {isCoachOrAdmin && (
+        <CreateEventDialog
+          event={editingEvent ?? undefined}
+          open={isEditDialogOpen}
+          onOpenChange={(nextOpen) => {
+            setIsEditDialogOpen(nextOpen);
+            if (!nextOpen) setEditingEvent(null);
+          }}
+        />
+      )}
 
       <div className="flex gap-2 mb-6">
         <Button variant={filter === 'upcoming' ? 'default' : 'outline'} onClick={() => setFilter('upcoming')} size="sm">
@@ -111,6 +124,32 @@ export default function Events() {
                     <span className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800 capitalize">
                       {event.type}
                     </span>
+                    {isCoachOrAdmin && (
+                      <DropdownMenu.Root>
+                        <DropdownMenu.Trigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 -mr-2 -mt-2" aria-label="Event actions">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenu.Trigger>
+                        <DropdownMenu.Portal>
+                          <DropdownMenu.Content
+                            align="end"
+                            className="z-50 min-w-[10rem] overflow-hidden rounded-md border bg-white p-1 text-neutral-900 shadow-md"
+                          >
+                            <DropdownMenu.Item
+                              className="relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground"
+                              onSelect={() => {
+                                setEditingEvent(event);
+                                setIsEditDialogOpen(true);
+                              }}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              Edit event
+                            </DropdownMenu.Item>
+                          </DropdownMenu.Content>
+                        </DropdownMenu.Portal>
+                      </DropdownMenu.Root>
+                    )}
                   </div>
                   <CardTitle className="mt-2">{event.title}</CardTitle>
                   <CardDescription className="line-clamp-2">{event.description}</CardDescription>
