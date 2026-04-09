@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../components/ui/card';
+import { useAuthStore } from '../store/authStore';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -13,6 +14,13 @@ export default function Login() {
   const [error, setError] = useState<string | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/', { replace: true });
+    }
+  }, [navigate, user]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,8 +44,8 @@ export default function Login() {
         if (error) throw error;
         navigate('/');
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during authentication.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An error occurred during authentication.');
     } finally {
       setLoading(false);
     }

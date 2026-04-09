@@ -5,20 +5,40 @@ import { Database } from '../types/supabase';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
 
+/**
+ * Loads the signed-in user's profile row from Supabase.
+ * Returns null when no matching profile exists yet, and throws for query errors.
+ */
+const fetchProfile = async (userId: string) => {
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return profile;
+};
+
 interface AuthState {
   user: User | null;
   profile: Profile | null;
   isLoading: boolean;
+  authSubscription: { unsubscribe: () => void } | null;
   setUser: (user: User | null) => void;
   setProfile: (profile: Profile | null) => void;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   profile: null,
   isLoading: true,
+  authSubscription: null,
   setUser: (user) => set({ user }),
   setProfile: (profile) => set({ profile }),
   signOut: async () => {
@@ -32,12 +52,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       if (session?.user) {
         set({ user: session.user });
         
-        // Fetch profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
+        const profile = await fetchProfile(session.user.id);
           
         if (profile) {
           set({ profile });
@@ -50,18 +65,25 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     // Listen for auth changes
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        set({ user: session.user });
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        if (profile) set({ profile });
-      } else {
-        set({ user: null, profile: null });
+    const existingSubscription = get().authSubscription;
+    if (existingSubscription) {
+      existingSubscription.unsubscribe();
+    }
+
+    const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      try {
+        if (session?.user) {
+          set({ user: session.user });
+          const profile = await fetchProfile(session.user.id);
+          if (profile) set({ profile });
+        } else {
+          set({ user: null, profile: null });
+        }
+      } catch (error) {
+        console.error('Error handling auth state change:', error);
       }
     });
+
+    set({ authSubscription: data.subscription });
   },
 }));
