@@ -13,6 +13,7 @@ import { getAxesForPosition } from '../lib/performance';
 type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 type PlayerRow = Database['public']['Tables']['players']['Row'];
 type PerformanceInsert = Database['public']['Tables']['performance_metrics']['Insert'];
+type PerformanceRow = Database['public']['Tables']['performance_metrics']['Row'];
 
 interface PlayerWithProfile extends ProfileRow {
   players: PlayerRow | null;
@@ -121,25 +122,108 @@ export default function CoachDashboard() {
     },
   });
 
-  const addPerformanceMutation = useMutation({
+  const fetchLatestPerformance = async () => {
+    const { data, error } = await supabase
+      .from('performance_metrics')
+      .select('*')
+      .eq('player_id', selectedPlayerId)
+      .order('recorded_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    return (data ?? null) as PerformanceRow | null;
+  };
+
+  const latestPerformanceQuery = useQuery({
+    queryKey: ['latest-performance', selectedPlayerId],
+    enabled: Boolean(selectedPlayerId) && isCoachOrAdmin,
+    queryFn: fetchLatestPerformance,
+    staleTime: 30000,
+  });
+
+  const getLatestPerformanceForMutation = async () =>
+    latestPerformanceQuery.data
+      ? latestPerformanceQuery.data
+      : queryClient.fetchQuery({
+          queryKey: ['latest-performance', selectedPlayerId],
+          queryFn: fetchLatestPerformance,
+          staleTime: 30000,
+        });
+
+  const parseNumberWithFallback = (value: string, fallback: number | null | undefined) => {
+    if (value === '') return fallback ?? null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const preserveHexagonValues = (payload: PerformanceInsert, latest: PerformanceRow | null) => {
+    axes.forEach((axis) => {
+      payload[axis.field] = (latest?.[axis.field as keyof PerformanceRow] as number | null) ?? null;
+    });
+  };
+
+  const resetPerformanceInputs = () => {
+    setCommonForm(INITIAL_COMMON_FORM);
+    setAxisRatings((prev) => Object.fromEntries(Object.keys(prev).map((key) => [key, ''])) as Record<string, string>);
+  };
+
+  // Match stats and hexagon updates are intentionally separate; each mutation preserves the untouched half.
+  const updateMatchStatsMutation = useMutation({
     mutationFn: async () => {
       if (!selectedPlayerId || !user?.id) throw new Error('Select a player first.');
+      const latest = await getLatestPerformanceForMutation();
 
       const payload: PerformanceInsert = {
         player_id: selectedPlayerId,
         recorded_by: user.id,
-        event_id: commonForm.event_id || null,
-        match_rating: commonForm.match_rating ? Number(commonForm.match_rating) : null,
-        minutes_played: commonForm.minutes_played ? Number(commonForm.minutes_played) : null,
-        distance_ran_km: commonForm.distance_ran_km ? Number(commonForm.distance_ran_km) : null,
-        passes_completed: commonForm.passes_completed ? Number(commonForm.passes_completed) : null,
-        goals: commonForm.goals ? Number(commonForm.goals) : null,
-        assists: commonForm.assists ? Number(commonForm.assists) : null,
-        chances_created: commonForm.chances_created ? Number(commonForm.chances_created) : null,
+        event_id: commonForm.event_id || latest?.event_id || null,
+        match_rating: parseNumberWithFallback(commonForm.match_rating, latest?.match_rating),
+        minutes_played: parseNumberWithFallback(commonForm.minutes_played, latest?.minutes_played),
+        distance_ran_km: parseNumberWithFallback(commonForm.distance_ran_km, latest?.distance_ran_km),
+        passes_completed: parseNumberWithFallback(commonForm.passes_completed, latest?.passes_completed),
+        goals: parseNumberWithFallback(commonForm.goals, latest?.goals),
+        assists: parseNumberWithFallback(commonForm.assists, latest?.assists),
+        chances_created: parseNumberWithFallback(commonForm.chances_created, latest?.chances_created),
+      };
+
+      preserveHexagonValues(payload, latest);
+
+      const { error } = await supabase.from('performance_metrics').insert(payload);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['metrics', selectedPlayerId] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard', selectedPlayerId] });
+      queryClient.invalidateQueries({ queryKey: ['profile', selectedPlayerId] });
+      queryClient.invalidateQueries({ queryKey: ['latest-performance', selectedPlayerId] });
+      resetPerformanceInputs();
+    },
+  });
+
+  const updateHexagonMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedPlayerId || !user?.id) throw new Error('Select a player first.');
+      const latest = await getLatestPerformanceForMutation();
+
+      const payload: PerformanceInsert = {
+        player_id: selectedPlayerId,
+        recorded_by: user.id,
+        event_id: commonForm.event_id || latest?.event_id || null,
+        match_rating: latest?.match_rating ?? null,
+        minutes_played: latest?.minutes_played ?? null,
+        distance_ran_km: latest?.distance_ran_km ?? null,
+        passes_completed: latest?.passes_completed ?? null,
+        goals: latest?.goals ?? null,
+        assists: latest?.assists ?? null,
+        chances_created: latest?.chances_created ?? null,
       };
 
       axes.forEach((axis) => {
-        payload[axis.field] = axisRatings[axis.field] ? Number(axisRatings[axis.field]) : null;
+        payload[axis.field] = parseNumberWithFallback(
+          axisRatings[axis.field] ?? '',
+          latest?.[axis.field as keyof PerformanceRow] as number | null | undefined,
+        );
       });
 
       const { error } = await supabase.from('performance_metrics').insert(payload);
@@ -149,13 +233,8 @@ export default function CoachDashboard() {
       queryClient.invalidateQueries({ queryKey: ['metrics', selectedPlayerId] });
       queryClient.invalidateQueries({ queryKey: ['dashboard', selectedPlayerId] });
       queryClient.invalidateQueries({ queryKey: ['profile', selectedPlayerId] });
-      setCommonForm(INITIAL_COMMON_FORM);
-      setAxisRatings((prev) =>
-        Object.keys(prev).reduce<Record<string, string>>((acc, key) => {
-          acc[key] = '';
-          return acc;
-        }, {}),
-      );
+      queryClient.invalidateQueries({ queryKey: ['latest-performance', selectedPlayerId] });
+      resetPerformanceInputs();
     },
   });
 
@@ -227,9 +306,12 @@ export default function CoachDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Add Performance Record</CardTitle>
+            <CardTitle>Update Performance Record</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              You can update match stats and hexagon ratings independently. Unchanged values are preserved, and only the button you click applies updates.
+            </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="match_rating">Match Rating (0-10)</Label>
@@ -285,9 +367,21 @@ export default function CoachDashboard() {
               </div>
             </div>
 
-            <Button onClick={() => addPerformanceMutation.mutate()} disabled={addPerformanceMutation.isPending || !selectedPlayerId}>
-              {addPerformanceMutation.isPending ? 'Updating...' : 'Update Performance'}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={() => updateMatchStatsMutation.mutate()}
+                disabled={updateMatchStatsMutation.isPending || updateHexagonMutation.isPending || !selectedPlayerId}
+              >
+                {updateMatchStatsMutation.isPending ? 'Updating...' : 'Update Match Stats'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => updateHexagonMutation.mutate()}
+                disabled={updateHexagonMutation.isPending || updateMatchStatsMutation.isPending || !selectedPlayerId}
+              >
+                {updateHexagonMutation.isPending ? 'Updating...' : 'Update Hexagon Ratings'}
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
