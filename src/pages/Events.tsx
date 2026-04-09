@@ -18,7 +18,7 @@ export default function Events() {
   const { user, profile } = useAuthStore();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming');
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [rsvpError, setRsvpError] = useState<string | null>(null);
 
   const { data: events, isLoading } = useQuery({
     queryKey: ['events', filter],
@@ -47,6 +47,7 @@ export default function Events() {
       const { error } = await supabase
         .from('rsvps')
         .upsert(
+          // Relies on the unique(event_id, player_id) DB constraint from the migration.
           { event_id: eventId, player_id: user.id, status },
           { onConflict: 'event_id,player_id' }
         );
@@ -54,11 +55,11 @@ export default function Events() {
       if (error) throw error;
     },
     onSuccess: () => {
-      setActionError(null);
+      setRsvpError(null);
       queryClient.invalidateQueries({ queryKey: ['events'] });
     },
     onError: (error: unknown) => {
-      setActionError(error instanceof Error ? error.message : 'Failed to update RSVP.');
+      setRsvpError(error instanceof Error ? error.message : 'Failed to update RSVP.');
     },
   });
 
@@ -104,9 +105,9 @@ export default function Events() {
         </Button>
       </div>
 
-      {actionError && (
+      {rsvpError && (
         <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {actionError}
+          {rsvpError}
         </div>
       )}
 

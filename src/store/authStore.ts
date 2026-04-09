@@ -4,8 +4,11 @@ import { supabase } from '../lib/supabase';
 import { Database } from '../types/supabase';
 
 type Profile = Database['public']['Tables']['profiles']['Row'];
-let authSubscription: { unsubscribe: () => void } | null = null;
 
+/**
+ * Loads the signed-in user's profile row from Supabase.
+ * Returns null when no matching profile exists yet, and throws for query errors.
+ */
 const fetchProfile = async (userId: string) => {
   const { data: profile, error } = await supabase
     .from('profiles')
@@ -24,16 +27,18 @@ interface AuthState {
   user: User | null;
   profile: Profile | null;
   isLoading: boolean;
+  authSubscription: { unsubscribe: () => void } | null;
   setUser: (user: User | null) => void;
   setProfile: (profile: Profile | null) => void;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   profile: null,
   isLoading: true,
+  authSubscription: null,
   setUser: (user) => set({ user }),
   setProfile: (profile) => set({ profile }),
   signOut: async () => {
@@ -60,8 +65,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
 
     // Listen for auth changes
-    if (authSubscription) {
-      authSubscription.unsubscribe();
+    const existingSubscription = get().authSubscription;
+    if (existingSubscription) {
+      existingSubscription.unsubscribe();
     }
 
     const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -78,6 +84,6 @@ export const useAuthStore = create<AuthState>((set) => ({
       }
     });
 
-    authSubscription = data.subscription;
+    set({ authSubscription: data.subscription });
   },
 }));

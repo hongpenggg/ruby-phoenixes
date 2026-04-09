@@ -25,10 +25,6 @@ export function CreateEventDialog() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      if (!user?.id) {
-        throw new Error('You must be signed in to create an event.');
-      }
-
       const { error } = await supabase.from('events').insert({
         title: data.title,
         description: data.description,
@@ -36,7 +32,7 @@ export function CreateEventDialog() {
         venue: data.venue,
         type: data.type as 'training' | 'friendly' | 'competitive' | 'social',
         max_players: data.max_players ? parseInt(data.max_players) : null,
-        created_by: user.id,
+        created_by: user!.id,
       });
       if (error) throw error;
     },
@@ -60,6 +56,10 @@ export function CreateEventDialog() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.id) {
+      setErrorMessage('You must be signed in to create an event.');
+      return;
+    }
     createMutation.mutate(formData);
   };
 
@@ -158,7 +158,7 @@ export function CreateEventDialog() {
               <Dialog.Close asChild>
                 <Button type="button" variant="outline">Cancel</Button>
               </Dialog.Close>
-              <Button type="submit" disabled={createMutation.isPending}>
+              <Button type="submit" disabled={createMutation.isPending || !user?.id}>
                 {createMutation.isPending ? 'Creating...' : 'Create Event'}
               </Button>
             </div>
