@@ -56,10 +56,10 @@ export default function Events() {
       if (existingError) throw existingError;
 
       if (existing) {
-        const { error } = await supabase.from('rsvps').update({ status } as never).eq('id', existing.id);
+        const { error } = await supabase.from('rsvps').update({ status }).eq('id', existing.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('rsvps').insert({ event_id: eventId, player_id: user.id, status } as never);
+        const { error } = await supabase.from('rsvps').insert({ event_id: eventId, player_id: user.id, status });
         if (error) throw error;
       }
     },

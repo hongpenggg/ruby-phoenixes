@@ -29,7 +29,7 @@ type PlayerRow = Database['public']['Tables']['players']['Row'];
 type PerformanceRow = Database['public']['Tables']['performance_metrics']['Row'];
 
 interface ProfileData extends ProfileRow {
-  players: PlayerRow[] | null;
+  players: PlayerRow | null;
 }
 
 const PAGE_SIZE = 10;
@@ -68,7 +68,7 @@ export default function Profile() {
     },
   });
 
-  const playerInfo = profileData?.players?.[0] ?? null;
+  const playerInfo = profileData?.players ?? null;
   const roleAxes = useMemo(() => getAxesForPosition(playerInfo?.position), [playerInfo?.position]);
   const latestMetric = metricsData?.[0];
 
@@ -96,14 +96,14 @@ export default function Profile() {
 
       const profileUpdate = supabase
         .from('profiles')
-        .update({ full_name: editForm.full_name.trim() || null } as never)
+        .update({ full_name: editForm.full_name.trim() || null })
         .eq('id', id)
         .select('*')
         .single();
 
       const playerUpdate = supabase
         .from('players')
-        .update({ bio: editForm.bio.trim() || null } as never)
+        .update({ bio: editForm.bio.trim() || null })
         .eq('id', id)
         .select('*')
         .single();
@@ -133,7 +133,7 @@ export default function Profile() {
       const end = Math.min(start + PAGE_SIZE, metricsData.length);
       values.push({
         start,
-        label: start === 0 ? `Most recent ${PAGE_SIZE}` : `Matches ${start + 1}-${end}`,
+        label: start === 0 ? `Most recent ${Math.min(PAGE_SIZE, metricsData.length)}` : `Matches ${start + 1}-${end}`,
       });
     }
     return values;

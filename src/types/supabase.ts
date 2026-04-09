@@ -37,6 +37,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       players: {
         Row: {
@@ -75,6 +76,15 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'players_id_fkey'
+            columns: ['id']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
       }
       events: {
         Row: {
@@ -113,6 +123,15 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'events_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
       }
       rsvps: {
         Row: {
@@ -142,6 +161,22 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'rsvps_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'rsvps_player_id_fkey'
+            columns: ['player_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
       }
       performance_metrics: {
         Row: {
@@ -240,6 +275,29 @@ export interface Database {
           defensive_actions?: number | null
           recorded_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'performance_metrics_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'performance_metrics_player_id_fkey'
+            columns: ['player_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'performance_metrics_recorded_by_fkey'
+            columns: ['recorded_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
       }
     }
     Views: {

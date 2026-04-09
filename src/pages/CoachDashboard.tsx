@@ -15,7 +15,7 @@ type PlayerRow = Database['public']['Tables']['players']['Row'];
 type PerformanceInsert = Database['public']['Tables']['performance_metrics']['Insert'];
 
 interface PlayerWithProfile extends ProfileRow {
-  players: PlayerRow[] | null;
+  players: PlayerRow | null;
 }
 
 interface CommonPerformanceForm {
@@ -28,6 +28,17 @@ interface CommonPerformanceForm {
   chances_created: string;
   event_id: string;
 }
+
+const INITIAL_COMMON_FORM: CommonPerformanceForm = {
+  match_rating: '',
+  minutes_played: '',
+  distance_ran_km: '',
+  passes_completed: '',
+  goals: '',
+  assists: '',
+  chances_created: '',
+  event_id: '',
+};
 
 export default function CoachDashboard() {
   const { user, profile } = useAuthStore();
@@ -53,16 +64,7 @@ export default function CoachDashboard() {
   const [selectedPlayerId, setSelectedPlayerId] = useState('');
   const [strengthsInput, setStrengthsInput] = useState('');
   const [weaknessesInput, setWeaknessesInput] = useState('');
-  const [commonForm, setCommonForm] = useState<CommonPerformanceForm>({
-    match_rating: '',
-    minutes_played: '',
-    distance_ran_km: '',
-    passes_completed: '',
-    goals: '',
-    assists: '',
-    chances_created: '',
-    event_id: '',
-  });
+  const [commonForm, setCommonForm] = useState<CommonPerformanceForm>(INITIAL_COMMON_FORM);
   const [axisRatings, setAxisRatings] = useState<Record<string, string>>({});
 
   useEffect(() => {
@@ -72,7 +74,7 @@ export default function CoachDashboard() {
   }, [players, selectedPlayerId]);
 
   const selectedPlayer = useMemo(() => players?.find((player) => player.id === selectedPlayerId) ?? null, [players, selectedPlayerId]);
-  const selectedPlayerInfo = selectedPlayer?.players?.[0] ?? null;
+  const selectedPlayerInfo = selectedPlayer?.players ?? null;
   const axes = useMemo(() => getAxesForPosition(selectedPlayerInfo?.position), [selectedPlayerInfo?.position]);
 
   useEffect(() => {
@@ -86,16 +88,7 @@ export default function CoachDashboard() {
         return acc;
       }, {}),
     );
-    setCommonForm({
-      match_rating: '',
-      minutes_played: '',
-      distance_ran_km: '',
-      passes_completed: '',
-      goals: '',
-      assists: '',
-      chances_created: '',
-      event_id: '',
-    });
+    setCommonForm(INITIAL_COMMON_FORM);
   }, [selectedPlayerInfo, axes]);
 
   const updateTraitsMutation = useMutation({
@@ -116,7 +109,7 @@ export default function CoachDashboard() {
         .update({
           strengths: strengths.length ? strengths : null,
           weaknesses: weaknesses.length ? weaknesses : null,
-        } as never)
+        })
         .eq('id', selectedPlayerId);
 
       if (error) throw error;
@@ -149,14 +142,14 @@ export default function CoachDashboard() {
         payload[axis.field] = axisRatings[axis.field] ? Number(axisRatings[axis.field]) : null;
       });
 
-      const { error } = await supabase.from('performance_metrics').insert(payload as never);
+      const { error } = await supabase.from('performance_metrics').insert(payload);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['metrics', selectedPlayerId] });
       queryClient.invalidateQueries({ queryKey: ['dashboard', selectedPlayerId] });
       queryClient.invalidateQueries({ queryKey: ['profile', selectedPlayerId] });
-      setCommonForm((prev) => ({ ...prev, match_rating: '', minutes_played: '', distance_ran_km: '', passes_completed: '', goals: '', assists: '', chances_created: '', event_id: '' }));
+      setCommonForm(INITIAL_COMMON_FORM);
       setAxisRatings((prev) =>
         Object.keys(prev).reduce<Record<string, string>>((acc, key) => {
           acc[key] = '';
@@ -192,7 +185,7 @@ export default function CoachDashboard() {
             >
               {players.map((player) => (
                 <option key={player.id} value={player.id}>
-                  {player.full_name || player.email} {player.players?.[0]?.position ? `• ${player.players[0].position}` : ''}
+                  {player.full_name || player.email} {player.players?.position ? `• ${player.players.position}` : ''}
                 </option>
               ))}
             </select>
@@ -244,7 +237,7 @@ export default function CoachDashboard() {
               </div>
               <div className="space-y-1">
                 <Label htmlFor="minutes_played">Minutes Played</Label>
-                <Input id="minutes_played" type="number" min="0" max="200" value={commonForm.minutes_played} onChange={(event) => setCommonForm((prev) => ({ ...prev, minutes_played: event.target.value }))} />
+                <Input id="minutes_played" type="number" min="0" max="120" value={commonForm.minutes_played} onChange={(event) => setCommonForm((prev) => ({ ...prev, minutes_played: event.target.value }))} />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="distance_ran_km">Distance Ran (km)</Label>

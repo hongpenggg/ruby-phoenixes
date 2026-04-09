@@ -1,6 +1,6 @@
 alter table public.performance_metrics
   add column if not exists match_rating numeric(3,1) check (match_rating >= 0 and match_rating <= 10),
-  add column if not exists minutes_played integer check (minutes_played >= 0 and minutes_played <= 200),
+  add column if not exists minutes_played integer check (minutes_played >= 0 and minutes_played <= 120),
   add column if not exists distance_ran_km numeric(5,2) check (distance_ran_km >= 0 and distance_ran_km <= 50),
   add column if not exists passes_completed integer check (passes_completed >= 0),
   add column if not exists goals integer check (goals >= 0),
