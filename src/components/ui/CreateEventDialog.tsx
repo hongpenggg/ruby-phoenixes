@@ -61,12 +61,12 @@ export function CreateEventDialog() {
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg">
+        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border border-neutral-200 bg-white p-6 text-neutral-900 shadow-xl">
           <div className="flex flex-col space-y-1.5 text-center sm:text-left">
             <Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
               Create New Event
             </Dialog.Title>
-            <Dialog.Description className="text-sm text-muted-foreground">
+            <Dialog.Description className="text-sm text-neutral-600">
               Schedule a new training session or match.
             </Dialog.Description>
           </div>
@@ -86,7 +86,7 @@ export function CreateEventDialog() {
               <Label htmlFor="type">Event Type</Label>
               <select 
                 id="type"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="flex h-10 w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2"
                 value={formData.type}
                 onChange={e => setFormData({...formData, type: e.target.value})}
               >
@@ -134,7 +134,7 @@ export function CreateEventDialog() {
               <Label htmlFor="description">Description (Optional)</Label>
               <textarea 
                 id="description"
-                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="flex min-h-[80px] w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-700 focus-visible:ring-offset-2"
                 value={formData.description}
                 onChange={e => setFormData({...formData, description: e.target.value})}
               />
