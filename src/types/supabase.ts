@@ -37,6 +37,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       players: {
         Row: {
@@ -75,6 +76,15 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'players_id_fkey'
+            columns: ['id']
+            isOneToOne: true
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
       }
       events: {
         Row: {
@@ -113,6 +123,15 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'events_created_by_fkey'
+            columns: ['created_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
       }
       rsvps: {
         Row: {
@@ -142,6 +161,22 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'rsvps_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'rsvps_player_id_fkey'
+            columns: ['player_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
       }
       performance_metrics: {
         Row: {
@@ -154,6 +189,26 @@ export interface Database {
           endurance: number | null
           leadership_score: number | null
           notes: string | null
+          match_rating: number | null
+          minutes_played: number | null
+          distance_ran_km: number | null
+          passes_completed: number | null
+          goals: number | null
+          assists: number | null
+          chances_created: number | null
+          diving: number | null
+          positioning: number | null
+          penalties: number | null
+          long_pass: number | null
+          short_pass: number | null
+          leadership: number | null
+          dribbling: number | null
+          heading: number | null
+          interception: number | null
+          progressive_pass: number | null
+          safe_pass: number | null
+          shooting: number | null
+          defensive_actions: number | null
           recorded_at: string
         }
         Insert: {
@@ -166,6 +221,26 @@ export interface Database {
           endurance?: number | null
           leadership_score?: number | null
           notes?: string | null
+          match_rating?: number | null
+          minutes_played?: number | null
+          distance_ran_km?: number | null
+          passes_completed?: number | null
+          goals?: number | null
+          assists?: number | null
+          chances_created?: number | null
+          diving?: number | null
+          positioning?: number | null
+          penalties?: number | null
+          long_pass?: number | null
+          short_pass?: number | null
+          leadership?: number | null
+          dribbling?: number | null
+          heading?: number | null
+          interception?: number | null
+          progressive_pass?: number | null
+          safe_pass?: number | null
+          shooting?: number | null
+          defensive_actions?: number | null
           recorded_at?: string
         }
         Update: {
@@ -178,8 +253,51 @@ export interface Database {
           endurance?: number | null
           leadership_score?: number | null
           notes?: string | null
+          match_rating?: number | null
+          minutes_played?: number | null
+          distance_ran_km?: number | null
+          passes_completed?: number | null
+          goals?: number | null
+          assists?: number | null
+          chances_created?: number | null
+          diving?: number | null
+          positioning?: number | null
+          penalties?: number | null
+          long_pass?: number | null
+          short_pass?: number | null
+          leadership?: number | null
+          dribbling?: number | null
+          heading?: number | null
+          interception?: number | null
+          progressive_pass?: number | null
+          safe_pass?: number | null
+          shooting?: number | null
+          defensive_actions?: number | null
           recorded_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: 'performance_metrics_event_id_fkey'
+            columns: ['event_id']
+            isOneToOne: false
+            referencedRelation: 'events'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'performance_metrics_player_id_fkey'
+            columns: ['player_id']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+          {
+            foreignKeyName: 'performance_metrics_recorded_by_fkey'
+            columns: ['recorded_by']
+            isOneToOne: false
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          },
+        ]
       }
     }
     Views: {
