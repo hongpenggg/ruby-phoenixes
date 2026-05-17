@@ -22,6 +22,10 @@ An inclusive social football platform for Ruby Phoenixes, supporting player deve
    - Create a new project on [Supabase](https://supabase.com).
    - Go to the SQL Editor and run the migration script located at `supabase/migrations/20240101000000_initial_schema.sql`.
    - Get your Project URL and anon key from the API settings.
+   - Enable Google OAuth in **Auth → Providers** and configure your Google client ID/secret.
+   - Add redirect URLs in **Auth → URL Configuration**:
+     - `http://localhost:3000`
+     - Your production URL (e.g. `https://your-vercel-app.vercel.app`)
 4. **Environment Variables**:
    - Copy `.env.example` to `.env.local`:
      ```bash
