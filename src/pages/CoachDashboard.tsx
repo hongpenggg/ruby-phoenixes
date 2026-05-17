@@ -14,6 +14,7 @@ type ProfileRow = Database['public']['Tables']['profiles']['Row'];
 type PlayerRow = Database['public']['Tables']['players']['Row'];
 type PerformanceInsert = Database['public']['Tables']['performance_metrics']['Insert'];
 type PerformanceRow = Database['public']['Tables']['performance_metrics']['Row'];
+type PerformanceUpdate = Database['public']['Tables']['performance_metrics']['Update'];
 
 interface PlayerWithProfile extends ProfileRow {
   players: PlayerRow | null;
@@ -142,6 +143,8 @@ export default function CoachDashboard() {
     staleTime: 30000,
   });
 
+  const hasPerformanceEntry = Boolean(latestPerformanceQuery.data?.id);
+
   const getLatestPerformanceForMutation = async () =>
     latestPerformanceQuery.data
       ? latestPerformanceQuery.data
@@ -163,8 +166,11 @@ export default function CoachDashboard() {
     });
   };
 
-  const resetPerformanceInputs = () => {
+  const resetMatchStatsInputs = () => {
     setCommonForm(INITIAL_COMMON_FORM);
+  };
+
+  const resetHexagonInputs = () => {
     setAxisRatings((prev) => Object.fromEntries(Object.keys(prev).map((key) => [key, ''])) as Record<string, string>);
   };
 
@@ -197,7 +203,7 @@ export default function CoachDashboard() {
       queryClient.invalidateQueries({ queryKey: ['dashboard', selectedPlayerId] });
       queryClient.invalidateQueries({ queryKey: ['profile', selectedPlayerId] });
       queryClient.invalidateQueries({ queryKey: ['latest-performance', selectedPlayerId] });
-      resetPerformanceInputs();
+      resetMatchStatsInputs();
     },
   });
 
@@ -205,28 +211,25 @@ export default function CoachDashboard() {
     mutationFn: async () => {
       if (!selectedPlayerId || !user?.id) throw new Error('Select a player first.');
       const latest = await getLatestPerformanceForMutation();
+      if (!latest?.id) {
+        throw new Error('No performance entry exists. Please add match stats first to enable hexagon rating updates.');
+      }
 
-      const payload: PerformanceInsert = {
-        player_id: selectedPlayerId,
-        recorded_by: user.id,
-        event_id: commonForm.event_id || latest?.event_id || null,
-        match_rating: latest?.match_rating ?? null,
-        minutes_played: latest?.minutes_played ?? null,
-        distance_ran_km: latest?.distance_ran_km ?? null,
-        passes_completed: latest?.passes_completed ?? null,
-        goals: latest?.goals ?? null,
-        assists: latest?.assists ?? null,
-        chances_created: latest?.chances_created ?? null,
-      };
-
+      const payload: PerformanceUpdate = {};
       axes.forEach((axis) => {
-        payload[axis.field] = parseNumberWithFallback(
-          axisRatings[axis.field] ?? '',
-          latest?.[axis.field as keyof PerformanceRow] as number | null | undefined,
-        );
+        const value = axisRatings[axis.field] ?? '';
+        if (value === '') return;
+        const parsed = Number(value);
+        if (Number.isFinite(parsed)) {
+          payload[axis.field] = parsed;
+        }
       });
 
-      const { error } = await supabase.from('performance_metrics').insert(payload);
+      if (Object.keys(payload).length === 0) {
+        throw new Error('Please enter at least one hexagon rating value before updating.');
+      }
+
+      const { error } = await supabase.from('performance_metrics').update(payload).eq('id', latest.id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -234,7 +237,7 @@ export default function CoachDashboard() {
       queryClient.invalidateQueries({ queryKey: ['dashboard', selectedPlayerId] });
       queryClient.invalidateQueries({ queryKey: ['profile', selectedPlayerId] });
       queryClient.invalidateQueries({ queryKey: ['latest-performance', selectedPlayerId] });
-      resetPerformanceInputs();
+      resetHexagonInputs();
     },
   });
 
@@ -310,8 +313,13 @@ export default function CoachDashboard() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              You can update match stats and hexagon ratings independently. Unchanged values are preserved, and only the button you click applies updates.
+              Update match stats to create a new entry. Hexagon updates edit the latest entry without creating a new match record.
             </p>
+            {!latestPerformanceQuery.isLoading && !hasPerformanceEntry && (
+              <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                No performance entries yet. Add match stats first to unlock hexagon updates.
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="match_rating">Match Rating (0-10)</Label>
@@ -377,7 +385,12 @@ export default function CoachDashboard() {
               <Button
                 variant="outline"
                 onClick={() => updateHexagonMutation.mutate()}
-                disabled={updateHexagonMutation.isPending || updateMatchStatsMutation.isPending || !selectedPlayerId}
+                disabled={
+                  updateHexagonMutation.isPending ||
+                  updateMatchStatsMutation.isPending ||
+                  !selectedPlayerId ||
+                  !hasPerformanceEntry
+                }
               >
                 {updateHexagonMutation.isPending ? 'Updating...' : 'Update Hexagon Ratings'}
               </Button>
