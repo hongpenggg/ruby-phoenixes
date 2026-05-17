@@ -212,7 +212,7 @@ export default function CoachDashboard() {
       if (!selectedPlayerId || !user?.id) throw new Error('Select a player first.');
       const latest = await getLatestPerformanceForMutation();
       if (!latest?.id) {
-        throw new Error('No performance entry exists. Add match stats first.');
+        throw new Error('No performance entry exists. Please add match stats first to enable hexagon updates.');
       }
 
       const payload: PerformanceUpdate = {};
@@ -226,7 +226,7 @@ export default function CoachDashboard() {
       });
 
       if (Object.keys(payload).length === 0) {
-        throw new Error('No hexagon ratings provided. Please enter at least one rating value to update.');
+        throw new Error('Please enter at least one hexagon rating to update.');
       }
 
       const { error } = await supabase.from('performance_metrics').update(payload).eq('id', latest.id);
