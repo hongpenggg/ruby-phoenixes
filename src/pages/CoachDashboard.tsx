@@ -143,8 +143,7 @@ export default function CoachDashboard() {
     staleTime: 30000,
   });
 
-  const latestPerformance = latestPerformanceQuery.data ?? null;
-  const hasPerformanceEntry = Boolean(latestPerformance?.id);
+  const hasPerformanceEntry = Boolean(latestPerformanceQuery.data?.id);
 
   const getLatestPerformanceForMutation = async () =>
     latestPerformanceQuery.data
@@ -213,7 +212,7 @@ export default function CoachDashboard() {
       if (!selectedPlayerId || !user?.id) throw new Error('Select a player first.');
       const latest = await getLatestPerformanceForMutation();
       if (!latest?.id) {
-        throw new Error('No performance entry found. Please add match stats to create an entry before updating hexagon ratings.');
+        throw new Error('No performance entry exists. Add match stats first.');
       }
 
       const payload: PerformanceUpdate = {};
