@@ -7,19 +7,14 @@ import { Label } from './label';
 import { useAuthStore } from '../../store/authStore';
 import * as Dialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
-import { Database } from '../../types/supabase';
-
-type EventRow = Database['public']['Tables']['events']['Row'];
-type EventType = Database['public']['Tables']['events']['Insert']['type'];
-
-interface EventFormData {
-  title: string;
-  description: string;
-  event_date: string;
-  venue: string;
-  type: EventType;
-  max_players: string;
-}
+import {
+  buildEventPayload,
+  INITIAL_FORM_DATA,
+  toFormData,
+  type EventFormData,
+  type EventRow,
+  type EventType,
+} from '../../lib/eventForm';
 
 interface CreateEventDialogProps {
   event?: EventRow;
@@ -27,37 +22,11 @@ interface CreateEventDialogProps {
   onOpenChange?: (open: boolean) => void;
 }
 
-const INITIAL_FORM_DATA: EventFormData = {
-  title: '',
-  description: '',
-  event_date: '',
-  venue: '',
-  type: 'training',
-  max_players: '',
-};
-
-const toDateTimeLocalValue = (isoDate: string) => {
-  const date = new Date(isoDate);
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-};
-
-const toFormData = (event?: EventRow): EventFormData => {
-  if (!event) return INITIAL_FORM_DATA;
-  return {
-    title: event.title,
-    description: event.description ?? '',
-    event_date: toDateTimeLocalValue(event.event_date),
-    venue: event.venue,
-    type: event.type,
-    max_players: event.max_players ? String(event.max_players) : '',
-  };
-};
-
 export function CreateEventDialog({ event, open, onOpenChange }: CreateEventDialogProps) {
   const [internalOpen, setInternalOpen] = useState(false);
   const { user } = useAuthStore();
   const queryClient = useQueryClient();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const isEditMode = Boolean(event);
   const isControlled = open !== undefined;
   const isOpen = isControlled ? open : internalOpen;
@@ -83,36 +52,44 @@ export function CreateEventDialog({ event, open, onOpenChange }: CreateEventDial
   const createMutation = useMutation({
     mutationFn: async (data: EventFormData) => {
       if (isEditMode && !event?.id) throw new Error('Missing event id for update.');
+      if (!user?.id) throw new Error('You must be signed in to create an event.');
 
-      const eventPayload = {
-        title: data.title,
-        description: data.description || null,
-        event_date: new Date(data.event_date).toISOString(),
-        venue: data.venue,
-        type: data.type,
-        max_players: data.max_players ? parseInt(data.max_players, 10) : null,
-      };
+      const eventPayload = buildEventPayload(data);
 
       const { error } = isEditMode
-        ? await supabase.from('events').update(eventPayload).eq('id', event.id)
+        ? await supabase.from('events').update(eventPayload).eq('id', event!.id)
         : await supabase.from('events').insert({
             ...eventPayload,
-            created_by: user?.id,
+            created_by: user.id,
           });
 
       if (error) throw error;
     },
     onSuccess: () => {
+      setErrorMessage(null);
       queryClient.invalidateQueries({ queryKey: ['events'] });
       setDialogOpen(false);
       if (!isEditMode) {
         setFormData(INITIAL_FORM_DATA);
       }
     },
+    onError: (error: unknown) => {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : isEditMode
+            ? 'Failed to update event.'
+            : 'Failed to create event.',
+      );
+    },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.id) {
+      setErrorMessage('You must be signed in to create an event.');
+      return;
+    }
     createMutation.mutate(formData);
   };
 
@@ -136,6 +113,11 @@ export function CreateEventDialog({ event, open, onOpenChange }: CreateEventDial
           </div>
           
           <form onSubmit={handleSubmit} className="space-y-4">
+            {errorMessage && (
+              <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {errorMessage}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
               <Input 
@@ -208,7 +190,7 @@ export function CreateEventDialog({ event, open, onOpenChange }: CreateEventDial
               <Dialog.Close asChild>
                 <Button type="button" variant="outline">Cancel</Button>
               </Dialog.Close>
-              <Button type="submit" disabled={createMutation.isPending}>
+              <Button type="submit" disabled={createMutation.isPending || !user?.id}>
                 {createMutation.isPending ? (isEditMode ? 'Updating...' : 'Creating...') : isEditMode ? 'Update Event' : 'Create Event'}
               </Button>
             </div>
