@@ -7,6 +7,7 @@ import { Calendar as CalendarIcon, MapPin, Users, Clock, MoreHorizontal, Pencil 
 import { format } from 'date-fns';
 import { useAuthStore } from '../store/authStore';
 import { CreateEventDialog } from '../components/ui/CreateEventDialog';
+import { buildRsvpUpsert } from '../lib/rsvp';
 import { Database } from '../types/supabase';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
@@ -21,6 +22,7 @@ export default function Events() {
   const { user, profile } = useAuthStore();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<'all' | 'upcoming' | 'past'>('upcoming');
+  const [rsvpError, setRsvpError] = useState<string | null>(null);
   const [editingEvent, setEditingEvent] = useState<EventRow | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
@@ -48,26 +50,21 @@ export default function Events() {
     mutationFn: async ({ eventId, status }: { eventId: string; status: RsvpRow['status'] }) => {
       if (!user) throw new Error('Not authenticated');
 
-      const { data, error: existingError } = await supabase
+      // Atomic upsert — see src/lib/rsvp.ts. This avoids the
+      // select-then-insert race in the old flow.
+      const { row, onConflict } = buildRsvpUpsert(eventId, user.id, status);
+      const { error } = await supabase
         .from('rsvps')
-        .select('id')
-        .eq('event_id', eventId)
-        .eq('player_id', user.id)
-        .maybeSingle();
-      const existing = data as { id: string } | null;
+        .upsert(row, { onConflict });
 
-      if (existingError) throw existingError;
-
-      if (existing) {
-        const { error } = await supabase.from('rsvps').update({ status }).eq('id', existing.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from('rsvps').insert({ event_id: eventId, player_id: user.id, status });
-        if (error) throw error;
-      }
+      if (error) throw error;
     },
     onSuccess: () => {
+      setRsvpError(null);
       queryClient.invalidateQueries({ queryKey: ['events'] });
+    },
+    onError: (error: unknown) => {
+      setRsvpError(error instanceof Error ? error.message : 'Failed to update RSVP.');
     },
   });
 
@@ -108,6 +105,12 @@ export default function Events() {
           All
         </Button>
       </div>
+
+      {rsvpError && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {rsvpError}
+        </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {events?.length === 0 ? (
