@@ -11,6 +11,7 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [oauthLoading, setOauthLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
   const navigate = useNavigate();
@@ -21,6 +22,8 @@ export default function Login() {
       navigate('/', { replace: true });
     }
   }, [navigate, user]);
+
+  const isBusy = loading || oauthLoading;
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +51,25 @@ export default function Login() {
       setError(err instanceof Error ? err.message : 'An error occurred during authentication.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    setOauthLoading(true);
+    setError(null);
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        },
+      });
+      if (error) throw error;
+    } catch (err: any) {
+      setError(err.message || 'An error occurred during Google authentication.');
+    } finally {
+      setOauthLoading(false);
     }
   };
 
@@ -95,7 +117,10 @@ export default function Login() {
             </div>
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="button" variant="outline" className="w-full" onClick={handleGoogleAuth} disabled={isBusy}>
+              {oauthLoading ? 'Connecting to Google...' : isSignUp ? 'Sign Up with Google' : 'Sign In with Google'}
+            </Button>
+            <Button type="submit" className="w-full" disabled={isBusy}>
               {loading ? 'Processing...' : isSignUp ? 'Sign Up' : 'Sign In'}
             </Button>
             <Button

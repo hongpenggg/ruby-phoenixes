@@ -189,6 +189,26 @@ export interface Database {
           endurance: number | null
           leadership_score: number | null
           notes: string | null
+          match_rating: number | null
+          minutes_played: number | null
+          distance_ran_km: number | null
+          passes_completed: number | null
+          goals: number | null
+          assists: number | null
+          chances_created: number | null
+          diving: number | null
+          positioning: number | null
+          penalties: number | null
+          long_pass: number | null
+          short_pass: number | null
+          leadership: number | null
+          dribbling: number | null
+          heading: number | null
+          interception: number | null
+          progressive_pass: number | null
+          safe_pass: number | null
+          shooting: number | null
+          defensive_actions: number | null
           recorded_at: string
         }
         Insert: {
@@ -201,6 +221,26 @@ export interface Database {
           endurance?: number | null
           leadership_score?: number | null
           notes?: string | null
+          match_rating?: number | null
+          minutes_played?: number | null
+          distance_ran_km?: number | null
+          passes_completed?: number | null
+          goals?: number | null
+          assists?: number | null
+          chances_created?: number | null
+          diving?: number | null
+          positioning?: number | null
+          penalties?: number | null
+          long_pass?: number | null
+          short_pass?: number | null
+          leadership?: number | null
+          dribbling?: number | null
+          heading?: number | null
+          interception?: number | null
+          progressive_pass?: number | null
+          safe_pass?: number | null
+          shooting?: number | null
+          defensive_actions?: number | null
           recorded_at?: string
         }
         Update: {
@@ -213,6 +253,26 @@ export interface Database {
           endurance?: number | null
           leadership_score?: number | null
           notes?: string | null
+          match_rating?: number | null
+          minutes_played?: number | null
+          distance_ran_km?: number | null
+          passes_completed?: number | null
+          goals?: number | null
+          assists?: number | null
+          chances_created?: number | null
+          diving?: number | null
+          positioning?: number | null
+          penalties?: number | null
+          long_pass?: number | null
+          short_pass?: number | null
+          leadership?: number | null
+          dribbling?: number | null
+          heading?: number | null
+          interception?: number | null
+          progressive_pass?: number | null
+          safe_pass?: number | null
+          shooting?: number | null
+          defensive_actions?: number | null
           recorded_at?: string
         }
         Relationships: [
